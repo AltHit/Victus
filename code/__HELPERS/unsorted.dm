@@ -276,26 +276,21 @@ Turf and target are seperate in case you want to teleport some distance from a t
 		mind.name = newname
 
 	if(oldname)
-		//update the datacore records! This is goig to be a bit costly.
-		for(var/list/L in list(data_core.general, data_core.medical, data_core.security, data_core.locked))
-			for(var/datum/data/record/R in L)
-				if(R.fields["name"] == oldname)
-					R.fields["name"] = newname
-					break
+		for(var/datum/computer_file/report/crew_record/R in GLOB.all_crew_records)
+			if(R.get_name() == oldname)
+				R.set_name(newname)
 
 		//update our pda and id if we have them on our person
-		var/list/searching = GetAllContents(searchDepth = 3)
-		var/search_id = 1
-		var/search_pda = 1
-
-		for(var/A in searching)
-			if( search_id && istype(A,/obj/item/card/id) )
+		for(var/obj/A in GetAllContents(searchDepth = 3))
+			if(istype(A,/obj/item/card/id))
 				var/obj/item/card/id/ID = A
 				if(ID.registered_name == oldname)
 					ID.registered_name = newname
 					ID.name = "[newname]'s ID Card ([ID.assignment])"
-					if(!search_pda)	break
-					search_id = 0
+					if(istype(A.loc, /obj/item/modular_computer))
+						var/obj/item/modular_computer/tolabel = A.loc
+						tolabel.update_label()
+					break
 	return 1
 
 
@@ -886,7 +881,7 @@ GLOBAL_LIST_INIT(duplicate_forbidden_vars,list(
 			all_vars[V] = original.vars[V]
 	return all_vars
 
-/area/proc/copy_contents_to(var/area/A , var/platingRequired = 0 )
+/area/proc/copy_contents_to(area/A , platingRequired = FALSE, noobjs = FALSE )
 	//Takes: Area. Optional: If it should copy to areas that don't have plating
 	//Returns: Nothing.
 	//Notes: Attempts to move the contents of one area to another area.
@@ -895,7 +890,8 @@ GLOBAL_LIST_INIT(duplicate_forbidden_vars,list(
 
 	// Does *not* affect gases etc; copied turfs will be changed via ChangeTurf, and the dir, icon, and icon_state copied. All other vars will remain default.
 
-	if(!A || !src) return 0
+	if(!A || !src)
+		return FALSE
 
 	var/list/turfs_src = get_area_turfs(src.type)
 	var/list/turfs_trg = get_area_turfs(A.type)
@@ -963,15 +959,16 @@ GLOBAL_LIST_INIT(duplicate_forbidden_vars,list(
 					var/list/mobs = new/list()
 					var/list/newmobs = new/list()
 
-					for(var/obj/O in T)
-						objs += O
+					if(!noobjs)
+						for(var/obj/O in T)
+							objs += O
 
-					for(var/obj/O in objs)
-						newobjs += DuplicateObject(O , 1)
+						for(var/obj/O in objs)
+							newobjs += DuplicateObject(O , 1)
 
 
-					for(var/obj/O in newobjs)
-						O.loc = X
+						for(var/obj/O in newobjs)
+							O.loc = X
 
 					for(var/mob/M in T)
 
@@ -984,7 +981,8 @@ GLOBAL_LIST_INIT(duplicate_forbidden_vars,list(
 					for(var/mob/M in newmobs)
 						M.loc = X
 
-					copiedobjs += newobjs
+					if(!noobjs)
+						copiedobjs += newobjs
 					copiedobjs += newmobs
 
 //					var/area/AR = X.loc
